@@ -1,6 +1,7 @@
 import os
 import sqlite3
 from flask import Flask, request, render_template_string
+import tarfile
 
 app = Flask(__name__)
 
@@ -8,15 +9,20 @@ app = Flask(__name__)
 def get_user(username):
     conn = sqlite3.connect('users.db')
     cursor = conn.cursor()
-    # Vulnerable: using string formatting in SQL query
-    query = f"SELECT * FROM users WHERE username = '{username}'"
-    cursor.execute(query)
+    # Secure: use parameterized query to prevent SQL injection
+    query = "SELECT * FROM users WHERE username = ?"
+    cursor.execute(query, (username,))
     return cursor.fetchone()
 
 # Vulnerable to Command Injection
 def backup_data(filename):
-    # Vulnerable: using user input directly in command
-    os.system(f"tar -czf /tmp/backup.tar.gz {filename}")
+    # Only allow backup of specific files (whitelist)
+    allowed_files = {'data.txt', 'important.log'}
+    if filename not in allowed_files:
+        return "Invalid filename"
+    # Use tarfile for safer archiving
+    with tarfile.open('/tmp/backup.tar.gz', 'w:gz') as tar:
+        tar.add(filename)
     return "Backup completed"
 
 # Vulnerable to XSS
@@ -30,9 +36,18 @@ def profile():
 # Vulnerable to Path Traversal
 @app.route('/download')
 def download_file():
-    # Vulnerable: no path validation
+    # Secure: restrict file access to a specific directory and prevent path traversal
+    BASE_DIR = '/tmp/allowed_files'  # Change this to your allowed directory
     filename = request.args.get('filename')
-    with open(filename, 'r') as f:
+    if not filename:
+        return 'Filename required', 400
+    safe_filename = os.path.basename(filename)
+    filepath = os.path.join(BASE_DIR, safe_filename)
+    if not os.path.abspath(filepath).startswith(os.path.abspath(BASE_DIR)):
+        return 'Invalid filename', 400
+    if not os.path.exists(filepath):
+        return 'File not found', 404
+    with open(filepath, 'r') as f:
         content = f.read()
     return content
 
