@@ -1,0 +1,7 @@
+django==1.2
+flask==0.12
+requests==2.19.1
+pyyaml==3.13
+pillow==6.2.1
+jinja2==2.7.2
+urllib3==1.21.1 
