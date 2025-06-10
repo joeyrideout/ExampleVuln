@@ -6,6 +6,7 @@ import tarfile
 app = Flask(__name__)
 
 # Vulnerable to SQL Injection
+# Cachebust
 def get_user(username):
     conn = sqlite3.connect('users.db')
     cursor = conn.cursor()
